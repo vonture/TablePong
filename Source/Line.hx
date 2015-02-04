@@ -63,7 +63,7 @@ class Line extends Sprite
     {
         _finalized = true;
         _timer = duration;
-        _fadeStart = Math.min(duration, 1.0);
+        _fadeStart = Math.min(duration, 0.5);
 
         draw();
     }

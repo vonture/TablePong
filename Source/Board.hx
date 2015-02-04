@@ -3,7 +3,9 @@ package;
 import openfl.display.Sprite;
 import flash.events.Event;
 import flash.events.MouseEvent;
-import flash.Vector;
+import flash.events.TouchEvent;
+import flash.ui.Multitouch;
+import flash.ui.MultitouchInputMode;
 
 typedef LineBallCollision =
 {
@@ -13,47 +15,65 @@ typedef LineBallCollision =
 
 class Board extends Sprite
 {
-    public function new(width:Float, height:Float)
+    public function new(playerCount:Int, width:Float, height:Float)
     {
         super();
+        mouseChildren = false;
 
-        _ball = new Ball();
-        _ball.radius = 30;
-        _ball.position = new Vec2(_width * 0.5, _height * 0.5);
-        _ball.velocity = new Vec2(300, 300);
+        _players = new Array<Player>();
+        for (i in 0...playerCount)
+        {
+            _players.push(new Player(i, playerCount));
+        }
 
-        addChild(_ball);
+        _balls = new Array<Ball>();
 
-        _lines = new Vector<Line>();
+        var ball = new Ball();
+        ball.radius = 30;
+        ball.position = new Vec2(500, 500);
+        ball.velocity = new Vec2(300, 300);
+        _balls.push(ball);
+        addChild(ball);
 
-        var line = new Line();
-        line.radius = 15;
-        line.position = new Vec2(900, 350);
-        line.extent = new Vec2(150, 150);
-        line.finalize(30);
-        _lines.push(line);
-        addChild(line);
+        _lines = new Array<Line>();
+
+        _touches = new Map<Int, Line>();
 
         _lastUpdate = haxe.Timer.stamp();
-
-        _background = new Sprite();
-        _background.mouseChildren = false;
-        addChild(_background);
 
         setSize(width, height);
 
         addEventListener(Event.ADDED_TO_STAGE, onAddedToStage);
-        _background.addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+
+        if (Multitouch.supportsTouchEvents)
+        {
+            Multitouch.inputMode = MultitouchInputMode.TOUCH_POINT;
+            addEventListener(TouchEvent.TOUCH_BEGIN, onTouchBegin);
+            addEventListener(TouchEvent.TOUCH_MOVE, onTouchMove);
+            addEventListener(TouchEvent.TOUCH_END, onTouchEnd);
+        }
+        else
+        {
+            addEventListener(MouseEvent.MOUSE_DOWN, onMouseDown);
+            addEventListener(MouseEvent.MOUSE_MOVE, onMouseMove);
+            addEventListener(MouseEvent.MOUSE_UP, onMouseUp);
+        }
     }
 
     public function setSize(width:Float, height:Float)
     {
         _width = width;
         _height = height;
-        _background.graphics.clear();
-        _background.graphics.beginFill(0, 0.0);
-        _background.graphics.drawRect(0, 0, width, height);
-        _background.graphics.endFill();
+        graphics.clear();
+        graphics.beginFill(0, 0.0);
+        graphics.drawRect(0, 0, width, height);
+        graphics.endFill();
+
+        for (i in 0..._players.length)
+        {
+            _players[i].boardSize = new Vec2(width, height);
+
+        }
     }
 
     private function onAddedToStage(event:Event):Void
@@ -108,62 +128,137 @@ class Board extends Sprite
         _lastUpdate = curTime;
 
         var i = 0;
-        while (i < _lines.length)
+        while (i < _balls.length)
         {
-            if (_lines[i].finished())
-            {
-                removeChild(_lines[i]);
-                _lines.splice(i, 1);
-            }
-            else
-            {
-                var line = _lines[i];
+            var ball = _balls[i];
 
-                // Bounce balls off this line
-                var collision = checkLineBallCollision(_ball, line);
-                if (collision.hit && Vec2.dot(collision.normal, _ball.velocity) < 0)
+            // Collide against lines
+            var j = 0;
+            while (j < _lines.length)
+            {
+                var line = _lines[j];
+
+                // Bounce balls off this line if they're coliding and going
+                // towards the line
+                var collision = checkLineBallCollision(ball, line);
+                if (collision.hit && Vec2.dot(collision.normal, ball.velocity) < 0)
                 {
-                    _ball.velocity = Vec2.negate(Vec2.reflect(_ball.velocity, collision.normal));
+                    ball.velocity = Vec2.negate(Vec2.reflect(ball.velocity, collision.normal));
+
+                    removeChild(line);
+                    _lines.splice(j, 1);
                 }
-
-                i++;
+                else
+                {
+                    j++;
+                }
             }
-        }
 
-        // Bounce ball off the wall
-        if (_ball.position.x < _ball.radius)
-        {
-            _ball.velocity.x = Math.abs(_ball.velocity.x);
-        }
-        else if (_ball.position.x > _width - _ball.radius)
-        {
-            _ball.velocity.x = -Math.abs(_ball.velocity.x);
-        }
+            // Bounce ball off the wall
+            if (ball.position.x < ball.radius)
+            {
+                ball.velocity.x = Math.abs(ball.velocity.x);
+            }
+            else if (ball.position.x > _width - ball.radius)
+            {
+                ball.velocity.x = -Math.abs(ball.velocity.x);
+            }
 
-        if (_ball.position.y < _ball.radius)
-        {
-            _ball.velocity.y = Math.abs(_ball.velocity.y);
-        }
-        else if (_ball.position.y > _height - _ball.radius)
-        {
-            _ball.velocity.y = -Math.abs(_ball.velocity.y);
-        }
+            if (ball.position.y < ball.radius)
+            {
+                ball.velocity.y = Math.abs(ball.velocity.y);
+            }
+            else if (ball.position.y > _height - ball.radius)
+            {
+                ball.velocity.y = -Math.abs(ball.velocity.y);
+            }
 
-        _ball.position = Vec2.add(_ball.position, Vec2.mulScalar(_ball.velocity, dt));
+            // Update position from velocity
+            ball.position = Vec2.add(ball.position, Vec2.mulScalar(ball.velocity, dt));
+
+            i++;
+        }
+    }
+
+    private function onMouseDown(event:MouseEvent):Void
+    {
+        onInputBegin(-1, new Vec2(event.stageX, event.stageY));
     }
 
     private function onMouseMove(event:MouseEvent):Void
     {
-        //_ball.x = event.stageX;
-       // _ball.y = event.stageY;
+        onInputMove(-1, new Vec2(event.stageX, event.stageY));
+    }
+
+    private function onMouseUp(event:MouseEvent):Void
+    {
+        onInputEnd(-1, new Vec2(event.stageX, event.stageY));
+    }
+
+    private function onTouchBegin(event:TouchEvent):Void
+    {
+        onInputBegin(event.touchPointID, new Vec2(event.stageX, event.stageY));
+    }
+
+    private function onTouchMove(event:TouchEvent):Void
+    {
+        onInputMove(event.touchPointID, new Vec2(event.stageX, event.stageY));
+    }
+
+    private function onTouchEnd(event:TouchEvent):Void
+    {
+        onInputEnd(event.touchPointID, new Vec2(event.stageX, event.stageY));
+    }
+
+    private function onInputBegin(id:Int, pos:Vec2)
+    {
+        if (_touches.exists(id))
+        {
+            return;
+        }
+
+        var line = new Line();
+        line.radius = 15;
+        line.position = pos.copy();
+        line.extent = new Vec2(0, 0);
+        _touches.set(id, line);
+        addChild(line);
+    }
+
+    private function onInputMove(id:Int, pos:Vec2)
+    {
+        if (!_touches.exists(id))
+        {
+            return;
+        }
+
+        var line = _touches.get(id);
+        line.extent = Vec2.sub(pos, line.position);
+    }
+
+    private function onInputEnd(id:Int, pos:Vec2)
+    {
+        if (!_touches.exists(id))
+        {
+            return;
+        }
+
+        var line = _touches.get(id);
+        line.extent = Vec2.sub(pos, line.position);
+        line.finalize(5);
+        _lines.push(line);
+        _touches.remove(id);
     }
 
     private var _width:Float;
     private var _height:Float;
 
-    private var _ball:Ball;
-    private var _lines:Vector<Line>;
+    private var _players: Array<Player>;
+
+    private var _balls:Array<Ball>;
+    private var _lines:Array<Line>;
+
+    private var _touches:Map<Int, Line>;
 
     private var _lastUpdate:Float;
-    private var _background:Sprite;
 }
