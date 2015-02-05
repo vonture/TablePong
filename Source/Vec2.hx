@@ -82,6 +82,11 @@ class Vec2
         return new Vec2(-a.x, -a.y);
     }
 
+    public static inline function abs(a: Vec2)
+    {
+        return new Vec2(Math.abs(a.x), Math.abs(a.y));
+    }
+
     public static inline function mulScalar(a: Vec2, scalar: Float)
     {
         return new Vec2(a.x * scalar, a.y * scalar);

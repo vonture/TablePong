@@ -10,7 +10,7 @@ class TablePong extends Sprite
     {
         super();
 
-        _board = new Board(4, stage.stageWidth, stage.stageHeight);
+        _board = new Board(6, stage.stageWidth, stage.stageHeight);
         addChild(_board);
 
         _fps = new FPS();

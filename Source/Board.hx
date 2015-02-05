@@ -23,7 +23,9 @@ class Board extends Sprite
         _players = new Array<Player>();
         for (i in 0...playerCount)
         {
-            _players.push(new Player(i, playerCount));
+            var player = new Player(i, playerCount);
+            _players.push(player);
+            addChild(player);
         }
 
         _balls = new Array<Ball>();
@@ -62,6 +64,11 @@ class Board extends Sprite
 
     public function setSize(width:Float, height:Float)
     {
+        if (width == _width && height == _height)
+        {
+            return;
+        }
+
         _width = width;
         _height = height;
         graphics.clear();
@@ -72,7 +79,7 @@ class Board extends Sprite
         for (i in 0..._players.length)
         {
             _players[i].boardSize = new Vec2(width, height);
-
+            _players[i].boundsThickness = 10;
         }
     }
 
@@ -121,11 +128,43 @@ class Board extends Sprite
         }
     }
 
+    private static function checkBallBoxCollision(ball: Ball, box: Rect): Bool
+    {
+        var circleDist = Vec2.abs(Vec2.sub(ball.position, box.position));
+
+        if (circleDist.x > (box.size.x * 0.5 + ball.radius) ||
+            circleDist.y > (box.size.y * 0.5 + ball.radius))
+        {
+            return false;
+        }
+
+        if (circleDist.x <= (box.size.x * 0.5 ) ||
+            circleDist.y <= (box.size.y * 0.5))
+        {
+            return true;
+        }
+
+        var cornerDist = Vec2.distance(circleDist, Vec2.mulScalar(box.size, 0.5));
+        return cornerDist <= ball.radius;
+    }
+
     private function onEnterFrame(event:Event):Void
     {
         var curTime = haxe.Timer.stamp();
         var dt = curTime - _lastUpdate;
         _lastUpdate = curTime;
+
+        // Remove timed out lines
+        var i = 0;
+        while (i < _lines.length)
+        {
+            var line = _lines[i];
+            if (line.finished())
+            {
+                _lines.remove(line);
+            }
+            i++;
+        }
 
         var i = 0;
         while (i < _balls.length)
@@ -145,12 +184,29 @@ class Board extends Sprite
                 {
                     ball.velocity = Vec2.negate(Vec2.reflect(ball.velocity, collision.normal));
 
+                    // Increase the ball speed after each bounce
+                    ball.velocity = Vec2.mulScalar(ball.velocity, _ballBoundSpeedMult);
+
                     removeChild(line);
-                    _lines.splice(j, 1);
+                    _lines.remove(line);
                 }
                 else
                 {
                     j++;
+                }
+            }
+
+            // Collide against player bounds
+            for (j in 0..._players.length)
+            {
+                var player = _players[j];
+                for (k in 0...player.boundingBoxes.length)
+                {
+                    var box = player.boundingBoxes[k];
+                    if (checkBallBoxCollision(ball, box))
+                    {
+                        trace("hit");
+                    }
                 }
             }
 
@@ -249,6 +305,8 @@ class Board extends Sprite
         _lines.push(line);
         _touches.remove(id);
     }
+
+    private static var _ballBoundSpeedMult:Float = 1.1;
 
     private var _width:Float;
     private var _height:Float;
