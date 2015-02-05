@@ -49,12 +49,6 @@ class Ball extends Sprite
 
     private function onAddedToStage(event:Event):Void
     {
-        addEventListener(Event.ENTER_FRAME, onEnterFrame);
-        draw();
-    }
-
-    private function onEnterFrame(event:Event):Void
-    {
         draw();
     }
 }

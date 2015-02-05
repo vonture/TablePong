@@ -36,7 +36,6 @@ class Line extends Sprite
     {
         x = pos.x;
         y = pos.y;
-        draw();
         return pos;
     }
 
@@ -116,6 +115,9 @@ class Line extends Sprite
 
         _timer -= dt;
 
-        draw();
+        if (_finalized && _timer < _fadeStart)
+        {
+            draw();
+        }
     }
 }

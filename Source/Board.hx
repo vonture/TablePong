@@ -30,6 +30,7 @@ class Board extends Sprite
 
         _balls = new Array<Ball>();
         _lines = new Array<Line>();
+        _mouseDown = false;
         _touches = new Map<Int, Line>();
 
         _lastUpdate = haxe.Timer.stamp();
@@ -284,16 +285,23 @@ class Board extends Sprite
 
     private function onMouseDown(event:MouseEvent):Void
     {
+        _mouseDown = true;
         onInputBegin(-1, new Vec2(event.stageX, event.stageY));
     }
 
     private function onMouseMove(event:MouseEvent):Void
     {
+        if (!_mouseDown)
+        {
+            return;
+        }
+
         onInputMove(-1, new Vec2(event.stageX, event.stageY));
     }
 
     private function onMouseUp(event:MouseEvent):Void
     {
+        _mouseDown = false;
         onInputEnd(-1, new Vec2(event.stageX, event.stageY));
     }
 
@@ -329,11 +337,6 @@ class Board extends Sprite
 
     private function onInputMove(id:Int, pos:Vec2)
     {
-        if (!_touches.exists(id))
-        {
-            return;
-        }
-
         var line = _touches.get(id);
         line.extent = Vec2.sub(pos, line.position);
     }
@@ -366,6 +369,7 @@ class Board extends Sprite
     private var _balls:Array<Ball>;
     private var _lines:Array<Line>;
 
+    private var _mouseDown:Bool;
     private var _touches:Map<Int, Line>;
 
     private var _lastUpdate:Float;
