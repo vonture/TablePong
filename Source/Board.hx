@@ -70,7 +70,7 @@ class Board extends Sprite
         for (i in 0..._players.length)
         {
             _players[i].boardSize = new Vec2(width, height);
-            _players[i].boundsThickness = 10;
+            _players[i].boundsThickness = 30;
         }
     }
 
@@ -108,8 +108,9 @@ class Board extends Sprite
             closest = Vec2.lerp(a, b, t);
         }
 
-        var dist = Vec2.distance(closest, p);
-        if (dist < ball.radius + line.radius)
+        var distSq = Vec2.distanceSquared(closest, p);
+        var minDist = ball.radius + line.radius;
+        if (distSq < minDist * minDist)
         {
             return { hit: true, normal: Vec2.normalize(Vec2.sub(p, closest)) };
         }
@@ -121,7 +122,8 @@ class Board extends Sprite
 
     private static function checkBallBoxCollision(ball: Ball, box: Rect): Bool
     {
-        var circleDist = Vec2.abs(Vec2.sub(ball.position, box.position));
+        var boxMid = Vec2.add(box.position, Vec2.mulScalar(box.size, 0.5));
+        var circleDist = Vec2.abs(Vec2.sub(ball.position, boxMid));
 
         if (circleDist.x > (box.size.x * 0.5 + ball.radius) ||
             circleDist.y > (box.size.y * 0.5 + ball.radius))
@@ -135,8 +137,8 @@ class Board extends Sprite
             return true;
         }
 
-        var cornerDist = Vec2.distance(circleDist, Vec2.mulScalar(box.size, 0.5));
-        return cornerDist <= ball.radius;
+        var cornerDistSq = Vec2.distanceSquared(circleDist, Vec2.mulScalar(box.size, 0.5));
+        return cornerDistSq <= (ball.radius * ball.radius);
     }
 
     private function onEnterFrame(event:Event):Void
@@ -180,6 +182,29 @@ class Board extends Sprite
             {
                 var line = _lines[j];
 
+                // Bounce ball off the wall
+                if (ball.position.x < ball.radius)
+                {
+                    ball.velocity.x = Math.abs(ball.velocity.x);
+                    ball.position.x = ball.radius;
+                }
+                else if (ball.position.x > _width - ball.radius)
+                {
+                    ball.velocity.x = -Math.abs(ball.velocity.x);
+                    ball.position.x = _width - ball.radius;
+                }
+
+                if (ball.position.y < ball.radius)
+                {
+                    ball.velocity.y = Math.abs(ball.velocity.y);
+                    ball.position.y = ball.radius;
+                }
+                else if (ball.position.y > _height - ball.radius)
+                {
+                    ball.velocity.y = -Math.abs(ball.velocity.y);
+                    ball.position.y = _height - ball.radius;
+                }
+
                 // Bounce balls off this line if they're coliding and going
                 // towards the line
                 var collision = checkLineBallCollision(ball, line);
@@ -193,7 +218,7 @@ class Board extends Sprite
                     if (ball.velocity.length > _ballSplitVelocity)
                     {
                         // Half the velocity
-                        ball.velocity = Vec2.mulScalar(ball.velocity, 0.5);
+                        ball.velocity = Vec2.mulScalar(ball.velocity, _ballSplitSpeedFactor);
 
                         // Split the ball
                         var curAngle = ball.velocity.angle;
@@ -220,7 +245,7 @@ class Board extends Sprite
             }
 
             // Collide against player bounds
-            var ballHitPlayer = false;
+            var ballHitPlayer = -1;
             for (j in 0..._players.length)
             {
                 var player = _players[j];
@@ -229,37 +254,26 @@ class Board extends Sprite
                     var box = player.boundingBoxes[k];
                     if (checkBallBoxCollision(ball, box))
                     {
-                        ballHitPlayer = true;
+                        ballHitPlayer = j;
                     }
                 }
             }
 
-            if (ballHitPlayer)
+            if (ballHitPlayer != -1)
             {
                 removeChild(ball);
                 _balls.remove(ball);
+
+                for (j in 0..._players.length)
+                {
+                    if (j != ballHitPlayer)
+                    {
+                        _players[j].score++;
+                    }
+                }
             }
             else
             {
-                // Bounce ball off the wall if moving too fast
-                if (ball.position.x < ball.radius)
-                {
-                    ball.velocity.x = Math.abs(ball.velocity.x);
-                }
-                else if (ball.position.x > _width - ball.radius)
-                {
-                    ball.velocity.x = -Math.abs(ball.velocity.x);
-                }
-
-                if (ball.position.y < ball.radius)
-                {
-                    ball.velocity.y = Math.abs(ball.velocity.y);
-                }
-                else if (ball.position.y > _height - ball.radius)
-                {
-                    ball.velocity.y = -Math.abs(ball.velocity.y);
-                }
-
                 // Update position from velocity
                 ball.position = Vec2.add(ball.position, Vec2.mulScalar(ball.velocity, dt));
 
@@ -338,10 +352,11 @@ class Board extends Sprite
         _touches.remove(id);
     }
 
-    private static var _ballBoundSpeedMult: Float = 1.1;
-    private static var _ballInitialVelocity: Float = 300;
+    private static var _ballBoundSpeedMult: Float = 1.15;
+    private static var _ballInitialVelocity: Float = 400;
     private static var _ballSplitVelocity: Float = 800;
     private static var _ballSplitAngle: Float = Math.PI * 0.25;
+    private static var _ballSplitSpeedFactor: Float = 0.75;
 
     private var _width:Float;
     private var _height:Float;

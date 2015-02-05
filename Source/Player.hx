@@ -5,9 +5,11 @@ import openfl.display.Sprite;
 class Player extends Sprite
 {
     public var index(default, null): Int;
+    public var boundingLines(default, null): Array<Vec2>;
     public var boundingBoxes(default, null): Array<Rect>;
     public var boardSize(default, set): Vec2;
     public var boundsThickness(default, set): Float;
+    public var score(default, default): Int;
 
     private var _totalPlayers: Int;
     private var _color: Int;
@@ -30,6 +32,7 @@ class Player extends Sprite
         index = playerIndex;
         boardSize = new Vec2(0, 0);
         boundsThickness = 10;
+        score = 0;
         _totalPlayers = totalPlayerCount;
     }
 
@@ -70,6 +73,7 @@ class Player extends Sprite
 
     private function updateBounds(): Void
     {
+        boundingLines = new Array<Vec2>();
         boundingBoxes = new Array<Rect>();
 
         if (boardSize == null || boardSize.x == 0 || boardSize.y == 0 ||
@@ -118,6 +122,12 @@ class Player extends Sprite
 
             var startPt = Vec2.add(edges[i], Vec2.mulScalar(dir, startOffset));
             var endPt = Vec2.add(edges[i], Vec2.mulScalar(dir, endOffset));
+
+            if (boundingLines.length == 0)
+            {
+                boundingLines.push(startPt);
+            }
+            boundingLines.push(endPt);
 
             if (edge.x == 0)
             {
