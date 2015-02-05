@@ -29,16 +29,7 @@ class Board extends Sprite
         }
 
         _balls = new Array<Ball>();
-
-        var ball = new Ball();
-        ball.radius = 30;
-        ball.position = new Vec2(500, 500);
-        ball.velocity = new Vec2(300, 300);
-        _balls.push(ball);
-        addChild(ball);
-
         _lines = new Array<Line>();
-
         _touches = new Map<Int, Line>();
 
         _lastUpdate = haxe.Timer.stamp();
@@ -161,9 +152,21 @@ class Board extends Sprite
             var line = _lines[i];
             if (line.finished())
             {
+                removeChild(line);
                 _lines.remove(line);
             }
             i++;
+        }
+
+        if (_balls.length == 0)
+        {
+            var ball = new Ball();
+            ball.radius = 30;
+            ball.position = new Vec2(_width * 0.5, _height * 0.5);
+            ball.velocity = new Vec2(0, _ballInitialVelocity);
+            ball.velocity.angle = Math.random() * Math.PI * 2.0;
+            _balls.push(ball);
+            addChild(ball);
         }
 
         var i = 0;
@@ -187,6 +190,26 @@ class Board extends Sprite
                     // Increase the ball speed after each bounce
                     ball.velocity = Vec2.mulScalar(ball.velocity, _ballBoundSpeedMult);
 
+                    if (ball.velocity.length > _ballSplitVelocity)
+                    {
+                        // Half the velocity
+                        ball.velocity = Vec2.mulScalar(ball.velocity, 0.5);
+
+                        // Split the ball
+                        var curAngle = ball.velocity.angle;
+
+                        var splitBall = new Ball();
+                        splitBall.radius = ball.radius;
+                        splitBall.position = ball.position.copy();
+                        splitBall.velocity = ball.velocity.copy();
+
+                        ball.velocity.angle -= _ballSplitAngle;
+                        splitBall.velocity.angle += _ballSplitAngle;
+
+                        _balls.push(splitBall);
+                        addChild(splitBall);
+                    }
+
                     removeChild(line);
                     _lines.remove(line);
                 }
@@ -197,6 +220,7 @@ class Board extends Sprite
             }
 
             // Collide against player bounds
+            var ballHitPlayer = false;
             for (j in 0..._players.length)
             {
                 var player = _players[j];
@@ -205,34 +229,42 @@ class Board extends Sprite
                     var box = player.boundingBoxes[k];
                     if (checkBallBoxCollision(ball, box))
                     {
-                        trace("hit");
+                        ballHitPlayer = true;
                     }
                 }
             }
 
-            // Bounce ball off the wall
-            if (ball.position.x < ball.radius)
+            if (ballHitPlayer)
             {
-                ball.velocity.x = Math.abs(ball.velocity.x);
+                removeChild(ball);
+                _balls.remove(ball);
             }
-            else if (ball.position.x > _width - ball.radius)
+            else
             {
-                ball.velocity.x = -Math.abs(ball.velocity.x);
-            }
+                // Bounce ball off the wall if moving too fast
+                if (ball.position.x < ball.radius)
+                {
+                    ball.velocity.x = Math.abs(ball.velocity.x);
+                }
+                else if (ball.position.x > _width - ball.radius)
+                {
+                    ball.velocity.x = -Math.abs(ball.velocity.x);
+                }
 
-            if (ball.position.y < ball.radius)
-            {
-                ball.velocity.y = Math.abs(ball.velocity.y);
-            }
-            else if (ball.position.y > _height - ball.radius)
-            {
-                ball.velocity.y = -Math.abs(ball.velocity.y);
-            }
+                if (ball.position.y < ball.radius)
+                {
+                    ball.velocity.y = Math.abs(ball.velocity.y);
+                }
+                else if (ball.position.y > _height - ball.radius)
+                {
+                    ball.velocity.y = -Math.abs(ball.velocity.y);
+                }
 
-            // Update position from velocity
-            ball.position = Vec2.add(ball.position, Vec2.mulScalar(ball.velocity, dt));
+                // Update position from velocity
+                ball.position = Vec2.add(ball.position, Vec2.mulScalar(ball.velocity, dt));
 
-            i++;
+                i++;
+            }
         }
     }
 
@@ -306,7 +338,10 @@ class Board extends Sprite
         _touches.remove(id);
     }
 
-    private static var _ballBoundSpeedMult:Float = 1.1;
+    private static var _ballBoundSpeedMult: Float = 1.1;
+    private static var _ballInitialVelocity: Float = 300;
+    private static var _ballSplitVelocity: Float = 800;
+    private static var _ballSplitAngle: Float = Math.PI * 0.25;
 
     private var _width:Float;
     private var _height:Float;
