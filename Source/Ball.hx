@@ -10,11 +10,15 @@ class Ball extends Sprite
     public var position(get,set):Vec2;
     public var velocity(default,default):Vec2;
 
+    private var _color: Int;
+
     public function new()
     {
         super();
 
         radius = 5;
+
+        _color = 0x54F226;
 
         addEventListener(Event.ADDED_TO_STAGE, onAddedToStage);
     }
@@ -42,7 +46,7 @@ class Ball extends Sprite
     private function draw():Void
     {
         graphics.clear();
-        graphics.beginFill(0x00FF00);
+        graphics.beginFill(_color);
         graphics.drawCircle(0, 0, radius);
         graphics.endFill();
     }

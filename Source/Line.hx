@@ -16,6 +16,8 @@ class Line extends Sprite
 
     private var _lastUpdate:Float;
 
+    private var _color:Int;
+
     public function new()
     {
         super();
@@ -26,6 +28,10 @@ class Line extends Sprite
         _finalized = false;
         _timer = 0;
         _fadeStart = 0;
+
+        _color = (Std.int(Math.random() * 0xFF) <<  0) |
+                 (Std.int(Math.random() * 0xFF) <<  8) |
+                 (Std.int(Math.random() * 0xFF) << 16);
 
         _lastUpdate = haxe.Timer.stamp();
 
@@ -92,8 +98,8 @@ class Line extends Sprite
         }
 
         graphics.clear();
-        graphics.beginFill(0xFF0000, alpha);
-        graphics.lineStyle(radius * 2, 0xFF0000, alpha);
+        graphics.beginFill(_color, alpha);
+        graphics.lineStyle(radius * 2, _color, alpha);
 
         graphics.moveTo(0, 0);
         graphics.lineTo(extent.x, extent.y);

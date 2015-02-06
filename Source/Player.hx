@@ -18,15 +18,7 @@ class Player extends Sprite
     {
         super();
 
-        var colors =
-        [
-            0xFF0000,
-            0xFFFF00,
-            0xFF00FF,
-            0x00FF00,
-            0x00FFFF,
-            0x0000FF,
-        ];
+        var colors = [ 0x5CACC4, 0x8CD19D, 0xCEE879, 0xFCB653, 0xFF5254, 0xd18ce4 ];
         _color = colors[playerIndex];
 
         index = playerIndex;

@@ -63,9 +63,17 @@ class Board extends Sprite
 
         _width = width;
         _height = height;
+        _centerCirclePos = new Vec2(width * 0.5, height * 0.5);
+        _centerCircleRad = Math.min(width, height) * _midOffLimitsAreaRadius;
+
         graphics.clear();
+
+        graphics.lineStyle(5, 0xFF0000, 1.0);
+        graphics.drawCircle(_centerCirclePos.x, _centerCirclePos.y, _centerCircleRad);
+
         graphics.beginFill(0, 0.0);
         graphics.drawRect(0, 0, width, height);
+
         graphics.endFill();
 
         for (i in 0..._players.length)
@@ -80,13 +88,9 @@ class Board extends Sprite
         addEventListener(Event.ENTER_FRAME, onEnterFrame);
     }
 
-    private static function checkLineBallCollision(ball:Ball, line:Line):LineBallCollision
+    private static function checkLineCircleIntersection(a: Vec2, b: Vec2, lineRad: Float, p: Vec2, circleRad: Float): LineBallCollision
     {
         // Compute the closest pont on the line and it's distance to the ball
-        var a = line.position;
-        var b = Vec2.add(line.position, line.extent);
-        var p = ball.position;
-
         var lineLenSq = Vec2.distanceSquared(a, b);
         if (lineLenSq == 0)
         {
@@ -110,7 +114,7 @@ class Board extends Sprite
         }
 
         var distSq = Vec2.distanceSquared(closest, p);
-        var minDist = ball.radius + line.radius;
+        var minDist = circleRad + lineRad;
         if (distSq < minDist * minDist)
         {
             return { hit: true, normal: Vec2.normalize(Vec2.sub(p, closest)) };
@@ -208,7 +212,8 @@ class Board extends Sprite
 
                 // Bounce balls off this line if they're coliding and going
                 // towards the line
-                var collision = checkLineBallCollision(ball, line);
+                var collision = checkLineCircleIntersection(line.position, Vec2.add(line.position, line.extent), line.radius,
+                                                            ball.position, ball.radius);
                 if (collision.hit && Vec2.dot(collision.normal, ball.velocity) < 0)
                 {
                     ball.velocity = Vec2.negate(Vec2.reflect(ball.velocity, collision.normal));
@@ -338,7 +343,13 @@ class Board extends Sprite
     private function onInputMove(id:Int, pos:Vec2)
     {
         var line = _touches.get(id);
-        line.extent = Vec2.sub(pos, line.position);
+
+        var collision = checkLineCircleIntersection(line.position, pos, line.radius,
+                                                    _centerCirclePos, _centerCircleRad);
+        if (!collision.hit)
+        {
+            line.extent = Vec2.sub(pos, line.position);
+        }
     }
 
     private function onInputEnd(id:Int, pos:Vec2)
@@ -348,9 +359,12 @@ class Board extends Sprite
             return;
         }
 
+        // Send final move to adjust position
+        onInputMove(id, pos);
+
+        // Finalize the line
         var line = _touches.get(id);
-        line.extent = Vec2.sub(pos, line.position);
-        line.finalize(5);
+        line.finalize(2.5);
         _lines.push(line);
         _touches.remove(id);
     }
@@ -360,9 +374,13 @@ class Board extends Sprite
     private static var _ballSplitVelocity: Float = 800;
     private static var _ballSplitAngle: Float = Math.PI * 0.25;
     private static var _ballSplitSpeedFactor: Float = 0.75;
+    private static var _midOffLimitsAreaRadius: Float = 0.125;
 
     private var _width:Float;
     private var _height:Float;
+
+    private var _centerCirclePos: Vec2;
+    private var _centerCircleRad: Float;
 
     private var _players: Array<Player>;
 
